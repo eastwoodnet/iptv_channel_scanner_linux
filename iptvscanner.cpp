@@ -59,6 +59,7 @@ int iptvscan(unsigned int ip)
     inet_ntop(AF_INET, &ip, strip, 16);
     /* construct a filter */
     struct bpf_program filter;
+    pcap_setnonblock(device, 1, errBuf);
     pcap_compile(device, &filter, strfilter, 1, 0);
     pcap_setfilter(device, &filter);
 
@@ -89,61 +90,21 @@ int iptvscan(unsigned int ip)
 
 int main(int argc, char *argv[])
 {
-
-    pcap_if_t *alldevs;
-
     int i = 0;
     char errbuf[PCAP_ERRBUF_SIZE];
     int inum;
-    if (argc != 3)
+    if (argc != 4)
     {
         cout << "usage:" << endl
-             << "\t" << argv[0] <<" \"start of ip\" \"end of ip\" " << endl;
-        cout << "\t eg.. " << argv[0] << " 239.3.1.1 239.3.1.254" << endl;
+             << "\t" << argv[0] <<" \"interfaces\" \"start of ip\" \"end of ip\" " << endl;
+        cout << "\t eg.. " << argv[0] << " eno1 239.3.1.1 239.3.1.254" << endl;
         return -1;
     }
-    if (pcap_findalldevs(&alldevs, errbuf) == -1)
-    {
-        fprintf(stderr, "Error in pcap_findalldevs: %s\n", errbuf);
-        exit(1);
-    }
-
-    /* 打印列表 */
-    pcap_if_t *d;
-    for (d = alldevs; d; d = d->next)
-    {
-        printf("%d. %s", ++i, d->name);
-        if (d->description)
-            printf(" (%s)\n", d->description);
-        else
-            printf(" (No description available)\n");
-    }
-
-    if (i == 0)
-    {
-        printf("\nNo interfaces found! Make sure WinPcap is installed.\n");
-        return -1;
-    }
-
-    cout << "Enter the interface number (1-%d):";
-    cin >> inum;
-
-    if (inum < 1 || inum > i)
-    {
-        printf("\nInterface number out of range.\n");
-        /* 释放设备列表 */
-        pcap_freealldevs(alldevs);
-        return -1;
-    }
-    cout << "#EXTM3U name=\"bj-unicom-iptv\"" << endl;
-    /* 跳转到选中的适配器 */
-    for (d = alldevs, i = 0; i < inum - 1; d = d->next, i++)
-        ;
-    strncpy(nicname, d->name, sizeof(nicname));
-    pcap_freealldevs(alldevs);
+    cout << "#EXTM3U name=\"iptvlist\"" << endl;
+    strncpy(nicname, argv[1], strlen(argv[1]));
     unsigned int ipstart = 0, ipend = 0;
-    inet_pton(AF_INET, argv[1], &ipstart);
-    inet_pton(AF_INET, argv[2], &ipend);
+    inet_pton(AF_INET, argv[2], &ipstart);
+    inet_pton(AF_INET, argv[3], &ipend);
     ipstart = ntohl(ipstart);
     ipend = ntohl(ipend);
     for (int ip = ipstart; ip <= ipend; ip++)
